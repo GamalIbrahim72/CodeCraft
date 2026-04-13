@@ -1,0 +1,13 @@
+﻿global using Microsoft.EntityFrameworkCore;
+global using CodeCraft.Domain.Entities;
+global using CodeCraft.Application.Interfaces;
+global using CodeCraft.Application.Interfaces.Repositories;
+global using CodeCraft.Application.Interfaces.Services;
+global using Microsoft.Extensions.Configuration;
+global using Microsoft.IdentityModel.Tokens;
+global using System.Collections.Generic;
+global using System.IdentityModel.Tokens.Jwt;
+global using System.Linq;
+global using System.Security.Claims;
+global using System.Text;
+global using System.Threading.Tasks;
