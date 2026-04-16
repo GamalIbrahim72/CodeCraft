@@ -36,7 +36,7 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ITrackChatService, TrackChatService>();
 
-        services.AddHostedService<EmailBackgroundService>();
+       // services.AddHostedService<EmailBackgroundService>();
 
 
         return services;
