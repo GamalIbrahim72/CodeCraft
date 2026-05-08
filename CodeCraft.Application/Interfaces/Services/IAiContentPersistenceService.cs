@@ -6,9 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CodeCraft.Application.Interfaces.Services;
-public interface IAiService
+public interface IAiContentPersistenceService
 {
-
-    Task<List<AiQuestionDto>?> GetQuestionsAsync(string track);
-    Task<EvaluateResponseDto?> EvaluateAsync(EvaluateRequestDto dto);
+    Task SaveGeneratedContentAsync(AiRoadmapResponseDto data);
 }

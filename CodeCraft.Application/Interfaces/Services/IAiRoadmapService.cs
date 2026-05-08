@@ -6,9 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace CodeCraft.Application.Interfaces.Services;
-public interface IAiService
+public interface IAiRoadmapService
 {
+    Task<AiRoadmapResponseDto?> GenerateRoadmapAsync(int trackId, string userLevel);
 
-    Task<List<AiQuestionDto>?> GetQuestionsAsync(string track);
-    Task<EvaluateResponseDto?> EvaluateAsync(EvaluateRequestDto dto);
 }

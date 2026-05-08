@@ -5,6 +5,7 @@ using Mapster;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace CodeCraft.API.Controllers;
 [Authorize]
@@ -14,14 +15,15 @@ public class CoursesController : BaseController
 {
     private readonly ICourseService _courseService;
     private readonly IGenericRepository<Course> _courseRepository;
-    public CoursesController(ICourseService courseService, IGenericRepository<Course> courseRepository)
+    private readonly IUserRepository _userRepository;
+    public CoursesController(ICourseService courseService, IGenericRepository<Course> courseRepository, IUserRepository userRepository)
     {
         _courseService = courseService;
         _courseRepository = courseRepository;
+        _userRepository = userRepository;
     }
 
 
-    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetCourses(string? search)
     {
@@ -44,7 +46,7 @@ public class CoursesController : BaseController
         return Ok(result);
     }
 
-    [AllowAnonymous]
+  
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
@@ -65,13 +67,23 @@ public class CoursesController : BaseController
 
 
 
-    [AllowAnonymous]
+  
     [HttpGet("track/{trackId}")]
     public async Task<IActionResult> GetByTrack(int trackId)
     {
-        var courses = await _courseService.GetCoursesByTrackId(trackId);
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-        return SuccessResponse(courses, "Courses retrieved successfully");
+        if (userId == null)
+            return Unauthorized();
+
+        var user = await _userRepository.GetByIdAsync(int.Parse(userId));
+
+        var courses = await _courseRepository.GetAllAsync();
+
+        var result = courses
+            .Where(c => c.TrackId == trackId && c.Level == user.Level)
+            .OrderBy(c => c.Order);
+        return Ok(result);
     }
 
 

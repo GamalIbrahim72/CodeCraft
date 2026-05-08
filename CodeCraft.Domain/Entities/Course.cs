@@ -9,15 +9,15 @@ public class Course
 {
     public int Id { get; set; }
 
-    public string Title { get; set; }
+    public string Title { get; set; } = null!;
 
-    public string Description { get; set; }
+    public string Description { get; set; } = null!;
 
     public int TrackId { get; set; }
     public int Order { get; set; }
-    public Track Track { get; set; }
-    public string Level { get; set; }
+    public Track Track { get; set; } = null!;
+    public string Level { get; set; } = null!;
 
     public ICollection<Lesson> Lessons { get; set; }= new List<Lesson>();
-    public ICollection<Enrollment> Enrollments { get; set; }
+    public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();
 }

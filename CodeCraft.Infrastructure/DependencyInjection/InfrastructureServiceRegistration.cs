@@ -3,6 +3,7 @@ using CodeCraft.Application.Services;
 using CodeCraft.Infrastructure.Persistence;
 using CodeCraft.Infrastructure.Repositories;
 using CodeCraft.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -20,7 +21,14 @@ public static class InfrastructureServiceRegistration
     {
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection")
+                configuration.GetConnectionString("DefaultConnection"),
+                sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                }
             ));
 
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
@@ -36,9 +44,10 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ITrackChatService, TrackChatService>();
 
-       // services.AddHostedService<EmailBackgroundService>();
-
-
+        services.AddHostedService<EmailBackgroundService>();
+        services.AddHttpClient<IAiRoadmapService, AiRoadmapService>();
+        services.AddScoped<IAiContentPersistenceService, AiContentPersistenceService>();
+        services.AddHttpClient<IAiService, AiService>();
         return services;
     }
 }

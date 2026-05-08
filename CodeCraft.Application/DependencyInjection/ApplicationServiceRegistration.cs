@@ -16,6 +16,7 @@ public static class ApplicationServiceRegistration
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<ILessonService, LessonService>();
         services.AddScoped<IProgressService, ProgressService>();
+
        
 
 
