@@ -181,14 +181,10 @@ public class AiController : BaseController
 
         var currentQuestion = state.Questions[state.CurrentIndex];
 
-        state.Answers.Add(new AnswerEvaluationDto
+        state.Answers.Add(new EvaluateAnswerDto
         {
-            Question_Id = currentQuestion.Question_Id,
-            Question_Text = currentQuestion.Question_Text,
-            Difficulty_Level = currentQuestion.Difficulty_Level,
-            Topic_Area = currentQuestion.Topic_Area,
-            Track = currentQuestion.Track,
-            Student_Answer = dto.StudentAnswer
+            QuestionId = currentQuestion.Question_Id,
+            StudentAnswer = dto.StudentAnswer
         });
 
         state.CurrentIndex++;
@@ -231,7 +227,6 @@ public class AiController : BaseController
             user.Level = result.Level;
             await _userRepository.UpdateAsync(user);
         }
-       
 
         return Ok(new
         {

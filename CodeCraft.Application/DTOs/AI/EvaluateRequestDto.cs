@@ -1,14 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+﻿using System.Text.Json.Serialization;
 
 namespace CodeCraft.Application.DTOs.AI;
+
 public class EvaluateRequestDto
 {
     [JsonPropertyName("answers")]
-    public List<AnswerEvaluationDto> Answers { get; set; } = new();
+    public List<EvaluateAnswerDto> Answers { get; set; } = new();
+}
 
+public class EvaluateAnswerDto
+{
+    [JsonPropertyName("question_id")]
+    public int QuestionId { get; set; }
+
+    [JsonPropertyName("student_answer")]
+    public string StudentAnswer { get; set; } = string.Empty;
 }

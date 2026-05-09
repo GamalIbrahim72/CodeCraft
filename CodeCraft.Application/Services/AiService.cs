@@ -97,12 +97,12 @@ public class AiService : IAiService
             return null;
         }
 
-        var json = System.Text.Json.JsonSerializer.Serialize(
-            dto,
-            new System.Text.Json.JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+        var json = JsonSerializer.Serialize(
+    dto,
+    new JsonSerializerOptions
+    {
+        WriteIndented = true
+    });
 
         Console.WriteLine($"[AI Evaluate] Sent Body: {json}");
 
