@@ -1,40 +1,35 @@
 ﻿using CodeCraft.Application.DTOs.AI;
-using CodeCraft.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using Microsoft.Extensions.Caching.Memory;
+using System.Security.Claims;
 
 namespace CodeCraft.API.Controllers;
+
 [Route("api/[controller]")]
 [ApiController]
 [Authorize]
 public class AiController : BaseController
 {
+    private readonly IAiService _aiService;
     private readonly IAiRoadmapService _aiRoadmapService;
     private readonly IAiContentPersistenceService _aiContentPersistenceService;
-    private readonly IAiService _aiService;
     private readonly IUserRepository _userRepository;
-    private readonly ITrackRepository _trackRepository;
-    private readonly ICourseRepository _courseRepository;
-    private readonly IProgressService _progressService;
     private readonly IMemoryCache _cache;
-    private readonly IUserTrackRepository _userTrackRepository;
-    public AiController(IAiService aiService, IUserRepository userRepository, ITrackRepository trackRepository,IProgressService progressService, IAiRoadmapService aiRoadmapService, IAiContentPersistenceService aiContentPersistenceService , ICourseRepository courseRepository, IMemoryCache cache , IUserTrackRepository userTrackRepository)
+
+    public AiController(
+        IAiService aiService,
+        IAiRoadmapService aiRoadmapService,
+        IAiContentPersistenceService aiContentPersistenceService,
+        IUserRepository userRepository,
+        IMemoryCache cache)
     {
         _aiService = aiService;
-        _userRepository = userRepository;
-        _trackRepository = trackRepository;
-        _progressService = progressService;
         _aiRoadmapService = aiRoadmapService;
         _aiContentPersistenceService = aiContentPersistenceService;
-        _courseRepository = courseRepository;
+        _userRepository = userRepository;
         _cache = cache;
-        _userTrackRepository = userTrackRepository;
-
     }
-
 
     [HttpPost("set-level")]
     public async Task<IActionResult> SetLevel([FromBody] SetLevelDto dto)
@@ -50,18 +45,14 @@ public class AiController : BaseController
         var user = await _userRepository.GetByIdAsync(parsedId);
 
         user.Level = dto.Level;
-
         await _userRepository.UpdateAsync(user);
 
-        return Ok();
+        return Ok(new
+        {
+            message = "Level updated successfully",
+            level = user.Level
+        });
     }
-
-
-
-
-
-
-
 
     [HttpGet("questions")]
     public async Task<IActionResult> GetQuestions([FromQuery] string track)
@@ -98,49 +89,29 @@ public class AiController : BaseController
         return Ok(result);
     }
 
-
-
-    [HttpPost("start-roadmap")]
-    public async Task<IActionResult> StartRoadmap([FromBody] StartRoadmapDto dto)
+    [HttpGet("roadmap")]
+    public async Task<IActionResult> GenerateRoadmap(
+        [FromQuery] string track,
+        [FromQuery] string level)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(track))
+            return BadRequest("Track is required");
 
-        if (userId == null)
-            return Unauthorized();
+        if (string.IsNullOrWhiteSpace(level))
+            return BadRequest("Level is required");
 
-        var user = await _userRepository.GetByIdAsync(int.Parse(userId));
+        var result = await _aiRoadmapService.GenerateRoadmapAsync(track, level);
 
-        user.Level = dto.Level;
-        await _userRepository.UpdateAsync(user);
+        if (result == null)
+            return StatusCode(500, "AI roadmap service failed");
 
-        // لو عندك enroll service/repository استخدمه هنا
-        // await _trackRepository.EnrollAsync(user.Id, dto.TrackId);
+        await _aiContentPersistenceService.SaveGeneratedContentAsync(result);
 
-        var allCourses = await _courseRepository.GetAllAsync();
-
-        var existingCourses = allCourses
-            .Where(c => c.TrackId == dto.TrackId && c.Level == dto.Level)
-            .OrderBy(c => c.Order)
-            .ToList();
-
-        if (!existingCourses.Any())
+        return Ok(new
         {
-            var aiResult = await _aiRoadmapService.GenerateRoadmapAsync(dto.TrackId, dto.Level);
-
-            if (aiResult == null)
-                return StatusCode(500, "AI failed");
-
-            await _aiContentPersistenceService.SaveGeneratedContentAsync(aiResult);
-
-            allCourses = await _courseRepository.GetAllAsync();
-
-            existingCourses = allCourses
-                .Where(c => c.TrackId == dto.TrackId && c.Level == dto.Level)
-                .OrderBy(c => c.Order)
-                .ToList();
-        }
-
-        return Ok(existingCourses);
+            message = "Roadmap generated and saved successfully",
+            result
+        });
     }
 
     [HttpPost("exam/start")]
@@ -155,7 +126,6 @@ public class AiController : BaseController
 
         var state = new ExamSessionState
         {
-            
             Track = dto.Track,
             Questions = questions,
             CurrentIndex = 0

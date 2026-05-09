@@ -8,6 +8,6 @@ using System.Threading.Tasks;
 namespace CodeCraft.Application.Interfaces.Services;
 public interface IAiRoadmapService
 {
-    Task<AiRoadmapResponseDto?> GenerateRoadmapAsync(int trackId, string userLevel);
+    Task<AiRoadmapResponseDto?> GenerateRoadmapAsync(string track, string level);
 
 }

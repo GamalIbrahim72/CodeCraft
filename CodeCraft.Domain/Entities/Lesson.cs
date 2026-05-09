@@ -20,6 +20,7 @@ public class Lesson
     public int Order { get; set; }
 
     public int CourseId { get; set; }
+    public string ArticleUrl { get; set; } = string.Empty;
 
     public Course Course { get; set; }
 

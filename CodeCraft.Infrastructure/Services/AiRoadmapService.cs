@@ -1,13 +1,11 @@
-﻿using CodeCraft.Application.DTOs.AI;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http.Json;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Net.Http.Headers;
+using System.Text.Json;
+using CodeCraft.Application.DTOs.AI;
+using Microsoft.Extensions.Configuration;
 
 namespace CodeCraft.Infrastructure.Services;
-public class AiRoadmapService: IAiRoadmapService
+
+public class AiRoadmapService : IAiRoadmapService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
@@ -18,24 +16,76 @@ public class AiRoadmapService: IAiRoadmapService
         _configuration = configuration;
     }
 
-    public async Task<AiRoadmapResponseDto?> GenerateRoadmapAsync(int trackId, string userLevel)
+    private async Task<string?> GetDjangoTokenAsync()
     {
-        var djangoBaseUrl = _configuration["DjangoAi:BaseUrl"];
+        var baseUrl = _configuration["DjangoAi:BaseUrl"];
+        var username = _configuration["DjangoAi:Username"];
+        var password = _configuration["DjangoAi:Password"];
 
-        var request = new
+        var formData = new Dictionary<string, string>
         {
-            trackId,
-            level = userLevel
+            { "username", username! },
+            { "password", password! }
         };
 
-        var response = await _httpClient.PostAsJsonAsync(
-            $"{djangoBaseUrl}/api/roadmap/generate",
-            request
-        );
+        var response = await _httpClient.PostAsync(
+            $"{baseUrl}/api/token/",
+            new FormUrlEncodedContent(formData));
+
+        var content = await response.Content.ReadAsStringAsync();
+
+        Console.WriteLine($"[AI Roadmap Token] Status: {response.StatusCode}");
+        Console.WriteLine($"[AI Roadmap Token] Response: {content}");
 
         if (!response.IsSuccessStatusCode)
             return null;
 
-        return await response.Content.ReadFromJsonAsync<AiRoadmapResponseDto>();
+        var token = JsonSerializer.Deserialize<DjangoTokenResponseDto>(
+            content,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+        return token?.Access;
+    }
+
+    public async Task<AiRoadmapResponseDto?> GenerateRoadmapAsync(
+        string track,
+        string level)
+    {
+        var baseUrl = _configuration["DjangoAi:BaseUrl"];
+
+        var token = await GetDjangoTokenAsync();
+
+        if (token == null)
+            return null;
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"{baseUrl}/ai/roadmap/?track={Uri.EscapeDataString(track)}&level={Uri.EscapeDataString(level)}");
+
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        request.Headers.Accept.Add(
+            new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var response = await _httpClient.SendAsync(request);
+
+        var content = await response.Content.ReadAsStringAsync();
+
+        Console.WriteLine($"[AI Roadmap] Status: {response.StatusCode}");
+        Console.WriteLine($"[AI Roadmap] Response: {content}");
+
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        return JsonSerializer.Deserialize<AiRoadmapResponseDto>(
+            content,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
     }
 }

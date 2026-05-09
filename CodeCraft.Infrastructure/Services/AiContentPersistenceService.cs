@@ -1,14 +1,11 @@
 ﻿using CodeCraft.Application.DTOs.AI;
+using CodeCraft.Domain.Entities;
 using CodeCraft.Infrastructure.Persistence;
-using Google;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace CodeCraft.Infrastructure.Services;
-public class AiContentPersistenceService: IAiContentPersistenceService
+
+public class AiContentPersistenceService : IAiContentPersistenceService
 {
     private readonly AppDbContext _context;
 
@@ -19,54 +16,81 @@ public class AiContentPersistenceService: IAiContentPersistenceService
 
     public async Task SaveGeneratedContentAsync(AiRoadmapResponseDto data)
     {
-        var track = await _context.Tracks.FindAsync(data.TrackId);
+        if (data.Data == null)
+            throw new Exception("AI roadmap data is null");
+
+        var aiTrackName = NormalizeTrackName(data.Data.Track);
+
+        var track = await _context.Tracks
+            .FirstOrDefaultAsync(t =>
+                t.Name.ToLower() == aiTrackName ||
+                t.Name.ToLower().Replace(" ", "_") == aiTrackName ||
+                t.Name.ToLower().Replace(" ", "") == aiTrackName.Replace("_", ""));
 
         if (track == null)
-            throw new Exception("Track not found");
+            throw new Exception($"Track not found: {data.Data.Track}");
 
-        foreach (var courseDto in data.Courses)
+        var level = data.Data.Level ?? "Beginner";
+
+        var oldCourses = await _context.Courses
+     .Where(c => c.TrackId == track.Id && c.Level.ToLower() == level.ToLower())
+     .ToListAsync();
+
+        if (oldCourses.Any())
+        {
+            var oldCourseIds = oldCourses.Select(c => c.Id).ToList();
+
+            var oldLessons = await _context.Lessons
+                .Where(l => oldCourseIds.Contains(l.CourseId))
+                .ToListAsync();
+
+            _context.Lessons.RemoveRange(oldLessons);
+            _context.Courses.RemoveRange(oldCourses);
+
+            await _context.SaveChangesAsync();
+        }
+
+        foreach (var step in data.Data.Roadmap)
         {
             var course = new Course
             {
-                Title = courseDto.Title,
-                Description = courseDto.Description,
-                Order = courseDto.Order,
-                TrackId = data.TrackId,
-                Level = courseDto.Level ?? "Beginner"
+                Title = step.MainTopic ?? "Untitled Course",
+                Description = $"AI Generated Course - Topic Id: {step.TopicId}",
+                Order = step.Step,
+                TrackId = track.Id,
+                Level = level
             };
 
             _context.Courses.Add(course);
-            await _context.SaveChangesAsync(); // عشان نجيب Id
+            await _context.SaveChangesAsync();
 
-            foreach (var lessonDto in courseDto.Lessons)
+            var lessonOrder = 1;
+
+            foreach (var lessonDto in step.Lessons)
             {
                 var lesson = new Lesson
                 {
-                    Title = lessonDto.Title,
-                    Description = lessonDto.Description,
-                    VideoUrl = lessonDto.VideoUrl,
-                    Duration = lessonDto.Duration,
-                    Order = lessonDto.Order,
+                    Title = lessonDto.Subtopic ?? lessonDto.Topic ?? "Untitled Lesson",
+                    Description = lessonDto.Description ?? string.Empty,
+                    VideoUrl = lessonDto.Resources?.Video ?? string.Empty,
+                    ArticleUrl = lessonDto.Resources?.Article ?? string.Empty,
+                    Order = lessonOrder,
                     CourseId = course.Id
                 };
-
                 _context.Lessons.Add(lesson);
-                await _context.SaveChangesAsync();
-
-                foreach (var attDto in lessonDto.Attachments)
-                {
-                    var attachment = new LessonAttachment
-                    {
-                        FileName = attDto.FileName,
-                        FileUrl = attDto.FileUrl,
-                        LessonId = lesson.Id
-                    };
-
-                    _context.LessonAttachments.Add(attachment);
-                }
+                lessonOrder++;
             }
-        }
 
-        await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    private static string NormalizeTrackName(string? trackName)
+    {
+        return (trackName ?? string.Empty)
+            .Trim()
+            .ToLower()
+            .Replace("-", "_")
+            .Replace(" ", "_");
     }
 }

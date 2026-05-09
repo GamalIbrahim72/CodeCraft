@@ -14,6 +14,7 @@ public class UpdateLessonDto
     public string Description { get; set; } = string.Empty;
 
     public string VideoUrl { get; set; } = string.Empty;
+    public string ArticleUrl { get; set; } = string.Empty;
 
     public int Duration { get; set; }
 
