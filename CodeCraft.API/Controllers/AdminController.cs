@@ -1,24 +1,31 @@
 ﻿using CodeCraft.Application.DTOs;
+using CodeCraft.Application.DTOs.Admin;
 using CodeCraft.Domain.Enums;
+using CodeCraft.Infrastructure.Persistence;
 using Mapster;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CodeCraft.API.Controllers;
+
 [Authorize(Roles = "Admin")]
 [Route("api/[controller]")]
 [ApiController]
 public class AdminController : BaseController
 {
     private readonly IUserRepository _userRepository;
-    public IEmailService _emailService;
+    private readonly IEmailService _emailService;
+    private readonly AppDbContext _context;
 
-    public AdminController(IUserRepository userRepository, IEmailService emailService)
+    public AdminController(
+        IUserRepository userRepository,
+        IEmailService emailService,
+        AppDbContext context)
     {
         _userRepository = userRepository;
         _emailService = emailService;
+        _context = context;
     }
 
     [HttpPost("make-admin/{userId}")]
@@ -33,15 +40,14 @@ public class AdminController : BaseController
 
         await _userRepository.UpdateAsync(user);
 
-        return SuccessResponse<string>(null, "User promoted to Admin ");
+        return SuccessResponse<string>(null, "User promoted to Admin");
     }
-
 
     [HttpGet("users")]
     public async Task<IActionResult> GetUsers(string? search)
     {
         var users = await _userRepository.GetAllAsync();
-        
+
         if (!string.IsNullOrEmpty(search))
         {
             users = users.Where(u =>
@@ -56,7 +62,6 @@ public class AdminController : BaseController
         return Ok(result);
     }
 
-
     [HttpDelete("user/{userId}")]
     public async Task<IActionResult> DeleteUser(int userId)
     {
@@ -67,9 +72,36 @@ public class AdminController : BaseController
 
         await _userRepository.DeleteAsync(user);
 
-        return SuccessResponse<string>(null, "User deleted successfully ");
+        return SuccessResponse<string>(null, "User deleted successfully");
     }
 
+    [HttpGet("track-stats")]
+    public async Task<IActionResult> GetTrackStats()
+    {
+        var stats = await _context.UserTracks
+            .Include(ut => ut.Track)
+            .Include(ut => ut.User)
+            .GroupBy(ut => new
+            {
+                ut.TrackId,
+                TrackName = ut.Track.Name
+            })
+            .Select(g => new AdminTrackStatsDto
+            {
+                TrackId = g.Key.TrackId,
+                TrackName = g.Key.TrackName,
+                TotalUsers = g.Select(x => x.UserId).Distinct().Count(),
+                Levels = g
+                    .GroupBy(x => x.User.Level ?? "Unknown")
+                    .Select(levelGroup => new AdminLevelStatsDto
+                    {
+                        Level = levelGroup.Key,
+                        UsersCount = levelGroup.Select(x => x.UserId).Distinct().Count()
+                    })
+                    .ToList()
+            })
+            .ToListAsync();
 
-    
+        return Ok(stats);
+    }
 }

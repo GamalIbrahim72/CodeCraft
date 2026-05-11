@@ -14,4 +14,5 @@ public interface IUserTrackRepository
     Task<List<Track>> GetUserTracksAsync(int userId);
     Task<List<User>> GetEnrolledUsersAsync();
     Task<bool> IsUserEnrolledInTrackAsync(int userId, int trackId);
+    Task<List<UserTrack>> GetByUserIdAsync(int userId);
 }

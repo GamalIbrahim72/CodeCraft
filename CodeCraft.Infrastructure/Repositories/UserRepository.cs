@@ -33,6 +33,12 @@ public class UserRepository:GenericRepository<User> ,IUserRepository
         return await _context.Users
             .FirstOrDefaultAsync(u => u.ResetToken == token);
     }
+    
+    public async Task<User?> GetByPhoneAsync(string phone)
+    {
+        return await _context.Users
+            .FirstOrDefaultAsync(u => u.Phone == phone);
+    }
 
 
 }

@@ -17,13 +17,15 @@ public class AuthController : BaseController
     private readonly IUserRepository _userRepository;
     private readonly ITokenService _tokenService;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IEmailService _emailService;
 
-    public AuthController(IAuthService authService, IRefreshTokenRepository _refreshTokenRepository, IUserRepository userRepository, ITokenService tokenService, IPasswordHasher passwordHasher)
+    public AuthController(IAuthService authService, IRefreshTokenRepository refreshTokenRepository, IUserRepository userRepository, ITokenService tokenService, IPasswordHasher passwordHasher, IEmailService emailService)
     {
         _authService = authService;
-        _refreshTokenRepository = _refreshTokenRepository;
+        _refreshTokenRepository = refreshTokenRepository;
         _userRepository = userRepository;
         _tokenService = tokenService;
+        _emailService = emailService;
         _passwordHasher = passwordHasher;
     }
 
@@ -32,9 +34,92 @@ public class AuthController : BaseController
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var existingUser = await _userRepository.GetByEmailAsync(request.Email);
+
+        if (existingUser != null)
+            return BadRequest(new
+            {
+                message = "Email is already registered"
+            });
+
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+        {
+            var existingPhone = await _userRepository.GetByPhoneAsync(request.Phone);
+
+            if (existingPhone != null)
+                return BadRequest(new
+                {
+                    message = "Phone number is already registered"
+                });
+        }
+
         await _authService.RegisterAsync(request);
 
-        return SuccessResponse<string>(null, "User registered successfully");
+        return SuccessResponse<string>(
+            null,
+            "User registered successfully. Please check your email to verify your account.");
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
+    {
+        var user = await _userRepository.GetByEmailAsync(dto.Email);
+
+        if (user == null)
+            return BadRequest(new { message = "Invalid email" });
+
+        if (user.EmailConfirmed)
+            return BadRequest(new { message = "Email is already verified" });
+
+        if (user.EmailVerificationCode != dto.Code ||
+            user.EmailVerificationCodeExpiry < DateTime.UtcNow)
+        {
+            return BadRequest(new { message = "Invalid or expired verification code" });
+        }
+
+        user.EmailConfirmed = true;
+        user.EmailVerificationCode = null;
+        user.EmailVerificationCodeExpiry = null;
+
+        await _userRepository.UpdateAsync(user);
+
+        return Ok(new
+        {
+            message = "Email verified successfully"
+        });
+    }
+
+    [HttpPost("resend-email-code")]
+    public async Task<IActionResult> ResendEmailVerificationCode([FromBody] string email)
+    {
+        var user = await _userRepository.GetByEmailAsync(email);
+
+        if (user == null)
+            return BadRequest(new { message = "Invalid email" });
+
+        if (user.EmailConfirmed)
+            return BadRequest(new { message = "Email is already verified" });
+
+        var code = new Random().Next(100000, 999999).ToString();
+
+        user.EmailVerificationCode = code;
+        user.EmailVerificationCodeExpiry = DateTime.UtcNow.AddMinutes(10);
+
+        await _userRepository.UpdateAsync(user);
+
+        await _emailService.SendEmailAsync(
+    user.Email,
+    "CodeCraft Verification Code",
+    $"Your verification code is: {code}"
+);
+
+        return Ok(new
+        {
+            message = "Verification code sent successfully"
+        });
     }
 
     //login endpoint

@@ -57,4 +57,11 @@ public class UserTrackRepository: IUserTrackRepository
         return await _context.UserTracks
             .AnyAsync(ut => ut.UserId == userId && ut.TrackId == trackId);
     }
+
+    public async Task<List<UserTrack>> GetByUserIdAsync(int userId)
+    {
+        return await _context.UserTracks
+            .Where(x => x.UserId == userId)
+            .ToListAsync();
+    }
 }

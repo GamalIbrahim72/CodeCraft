@@ -1,5 +1,4 @@
-﻿using BCrypt.Net;
-using CodeCraft.Application.Common;
+﻿using CodeCraft.Application.Common;
 using CodeCraft.Application.Common.Exceptions;
 using CodeCraft.Application.DTOs.AuthDTOs;
 using CodeCraft.Application.DTOs.Password;
@@ -9,25 +8,22 @@ using CodeCraft.Domain.Enums;
 using Google.Apis.Auth;
 using Newtonsoft.Json;
 
-
 namespace CodeCraft.Application.Services;
-public class AuthService: IAuthService
+
+public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
     private readonly ITokenService _tokenService;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IEmailService _emailService;
     private readonly IPasswordHasher _passwordHasher;
-    private string Hash(string password)
-    {
-        return BCrypt.Net.BCrypt.HashPassword(password);
-    }
-    private bool Verify(string password, string hash)
-    {
-        return BCrypt.Net.BCrypt.Verify(password, hash);
-    }
 
-    public AuthService(IUserRepository userRepository, ITokenService tokenService, IRefreshTokenRepository refreshTokenRepository, IEmailService emailService, IPasswordHasher passwordHasher)
+    public AuthService(
+        IUserRepository userRepository,
+        ITokenService tokenService,
+        IRefreshTokenRepository refreshTokenRepository,
+        IEmailService emailService,
+        IPasswordHasher passwordHasher)
     {
         _userRepository = userRepository;
         _tokenService = tokenService;
@@ -36,8 +32,27 @@ public class AuthService: IAuthService
         _passwordHasher = passwordHasher;
     }
 
+    private string Hash(string password)
+    {
+        return BCrypt.Net.BCrypt.HashPassword(password);
+    }
+
+    private bool Verify(string password, string hash)
+    {
+        return BCrypt.Net.BCrypt.Verify(password, hash);
+    }
+
     public async Task RegisterAsync(RegisterRequest request)
     {
+        var existingUser = await _userRepository.GetByEmailAsync(request.Email);
+
+        if (existingUser != null)
+            throw new BadRequestException("Email is already registered");
+
+        var verificationCode = new Random()
+            .Next(100000, 999999)
+            .ToString();
+
         var user = new User
         {
             FirstName = request.FirstName,
@@ -45,22 +60,30 @@ public class AuthService: IAuthService
             Email = request.Email,
             Phone = request.Phone,
             DateOfBirth = request.DateOfBirth,
-            PasswordHash = Hash(request.Password)
+            PasswordHash = Hash(request.Password),
+
+            EmailConfirmed = false,
+            EmailVerificationCode = verificationCode,
+            EmailVerificationCodeExpiry = DateTime.UtcNow.AddMinutes(10)
         };
+
         var usersCount = await _userRepository.CountAsync();
 
-        if (usersCount == 0)
-        {
-            user.Role = UserRole.Admin;
-        }
-        else
-        {
-            user.Role = UserRole.User;
-        }
+        user.Role = usersCount == 0 ? UserRole.Admin : UserRole.User;
+
         await _userRepository.AddAsync(user);
 
+        await _emailService.SendEmailAsync(
+            user.Email,
+            "CodeCraft Email Verification",
+            $@"
+            <h2>Verify Your Email</h2>
+            <p>Your verification code is:</p>
+            <h1>{verificationCode}</h1>
+            <p>This code will expire in 10 minutes.</p>
+            "
+        );
     }
-    //Login
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
@@ -69,16 +92,15 @@ public class AuthService: IAuthService
         if (user == null)
             throw new UnauthorizedException("Invalid email or password");
 
-        var passwordValid = BCrypt.Net.BCrypt.Verify(
-            request.Password,
-            user.PasswordHash
-        );
+        var passwordValid = Verify(request.Password, user.PasswordHash);
 
         if (!passwordValid)
             throw new UnauthorizedException("Invalid email or password");
 
-        var token = _tokenService.GenerateToken(user);
+        if (!user.EmailConfirmed)
+            throw new UnauthorizedException("Please verify your email before login");
 
+        var token = _tokenService.GenerateToken(user);
         var refreshToken = GenerateRefreshToken();
 
         await _refreshTokenRepository.AddAsync(new RefreshToken
@@ -95,7 +117,6 @@ public class AuthService: IAuthService
         };
     }
 
-
     public async Task<AuthResponse> GoogleLoginAsync(string idToken)
     {
         var payload = await GoogleJsonWebSignature.ValidateAsync(idToken);
@@ -111,18 +132,19 @@ public class AuthService: IAuthService
                 LastName = payload.FamilyName,
                 Role = UserRole.User,
                 Provider = "Google",
-                ProviderId = payload.Subject
+                ProviderId = payload.Subject,
+                EmailConfirmed = true
             };
 
             await _userRepository.AddAsync(user);
         }
         else
         {
-            
             if (user.Provider == null)
             {
                 user.Provider = "Google";
                 user.ProviderId = payload.Subject;
+                user.EmailConfirmed = true;
 
                 await _userRepository.UpdateAsync(user);
             }
@@ -135,8 +157,6 @@ public class AuthService: IAuthService
             Token = token
         };
     }
-
-
 
     public async Task<AuthResponse> FacebookLoginAsync(string accessToken)
     {
@@ -151,7 +171,7 @@ public class AuthService: IAuthService
 
         var content = await response.Content.ReadAsStringAsync();
 
-        dynamic data = JsonConvert.DeserializeObject(content);
+        dynamic data = JsonConvert.DeserializeObject(content)!;
 
         string email = data.email;
         string name = data.name;
@@ -175,7 +195,8 @@ public class AuthService: IAuthService
                 LastName = lastName,
                 Role = UserRole.User,
                 Provider = "Facebook",
-                ProviderId = data.id
+                ProviderId = data.id,
+                EmailConfirmed = true
             };
 
             await _userRepository.AddAsync(user);
@@ -186,10 +207,12 @@ public class AuthService: IAuthService
             {
                 user.Provider = "Facebook";
                 user.ProviderId = data.id;
+                user.EmailConfirmed = true;
 
                 await _userRepository.UpdateAsync(user);
             }
         }
+
         var token = _tokenService.GenerateToken(user);
 
         return new AuthResponse
@@ -217,7 +240,10 @@ public class AuthService: IAuthService
 
         await _userRepository.UpdateAsync(user);
 
-        await _emailService.SendEmailAsync(email, "Reset Password", $"Your code: {token}");
+        await _emailService.SendEmailAsync(
+            email,
+            "Reset Password",
+            $"Your code: {token}");
     }
 
     public async Task ResetPassword(ResetPasswordDto dto)
@@ -237,5 +263,4 @@ public class AuthService: IAuthService
 
         await _userRepository.UpdateAsync(user);
     }
-
 }

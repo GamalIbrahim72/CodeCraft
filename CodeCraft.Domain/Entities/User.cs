@@ -26,6 +26,11 @@ public class User:BaseEntity
 
     public string? DailyGoal { get; set; }
     public string? ProfileImageUrl { get; set; }
+    public bool EmailConfirmed { get; set; } = false;
+
+    public string? EmailVerificationCode { get; set; }
+
+    public DateTime? EmailVerificationCodeExpiry { get; set; }
 
     public string? Provider { get; set; }
     public string? ProviderId { get; set; }
