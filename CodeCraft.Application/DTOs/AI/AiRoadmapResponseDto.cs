@@ -29,7 +29,14 @@ public class RoadmapStepDto
     public string? TopicId { get; set; }
 
     [JsonPropertyName("main_topic")]
+
     public string? MainTopic { get; set; }
+
+    [JsonPropertyName("topic")]
+    public string? Topic { get; set; }
+
+    [JsonPropertyName("topic_name")]
+    public string? TopicName { get; set; }
 
     [JsonPropertyName("lessons")]
     public List<RoadmapLessonDto> Lessons { get; set; } = new();
@@ -58,8 +65,8 @@ public class RoadmapLessonDto
 
 public class RoadmapResourcesDto
 {
-    [JsonPropertyName("video")]
-    public string? Video { get; set; }
+    [JsonPropertyName("videos")]
+    public Dictionary<string, string>? Videos { get; set; }
 
     [JsonPropertyName("article")]
     public string? Article { get; set; }

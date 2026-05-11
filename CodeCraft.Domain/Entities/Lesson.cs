@@ -9,11 +9,13 @@ public class Lesson
 {
     public int Id { get; set; }
 
-    public string Title { get; set; }
+    public string Title { get; set; } 
 
-    public string Description { get; set; } 
+    public string Description { get; set; } = string.Empty;
 
-    public string VideoUrl { get; set; }
+    public string VideoUrl { get; set; }= string.Empty;
+    public string VideoUrl2 { get; set; } = string.Empty;
+    public string VideoUrl3 { get; set; } = string.Empty;
 
     public int Duration { get; set; }
 

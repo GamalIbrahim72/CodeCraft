@@ -33,8 +33,8 @@ public class AiContentPersistenceService : IAiContentPersistenceService
         var level = data.Data.Level ?? "Beginner";
 
         var oldCourses = await _context.Courses
-     .Where(c => c.TrackId == track.Id && c.Level.ToLower() == level.ToLower())
-     .ToListAsync();
+            .Where(c => c.TrackId == track.Id && c.Level.ToLower() == level.ToLower())
+            .ToListAsync();
 
         if (oldCourses.Any())
         {
@@ -52,10 +52,17 @@ public class AiContentPersistenceService : IAiContentPersistenceService
 
         foreach (var step in data.Data.Roadmap)
         {
+            var courseTitle =
+                step.MainTopic
+                ?? step.Topic
+                ?? step.TopicName
+                ?? step.TopicId
+                ?? $"Step {step.Step}";
+
             var course = new Course
             {
-                Title = step.MainTopic ?? "Untitled Course",
-                Description = $"AI Generated Course - Topic Id: {step.TopicId}",
+                Title = courseTitle,
+                Description = $"AI Generated Course - Topic Id: {step.TopicId ?? string.Empty}",
                 Order = step.Step,
                 TrackId = track.Id,
                 Level = level
@@ -68,21 +75,38 @@ public class AiContentPersistenceService : IAiContentPersistenceService
 
             foreach (var lessonDto in step.Lessons)
             {
+                var videos = lessonDto.Resources?.Videos;
+
                 var lesson = new Lesson
                 {
-                    Title = lessonDto.Subtopic ?? lessonDto.Topic ?? "Untitled Lesson",
+                    Title = lessonDto.Subtopic ?? lessonDto.Topic ?? $"Lesson {lessonOrder}",
                     Description = lessonDto.Description ?? string.Empty,
-                    VideoUrl = lessonDto.Resources?.Video ?? string.Empty,
+
+                    VideoUrl = GetVideo(videos, "video_1"),
+                    VideoUrl2 = GetVideo(videos, "video_2"),
+                    VideoUrl3 = GetVideo(videos, "video_3"),
+
                     ArticleUrl = lessonDto.Resources?.Article ?? string.Empty,
                     Order = lessonOrder,
                     CourseId = course.Id
                 };
+
                 _context.Lessons.Add(lesson);
                 lessonOrder++;
             }
 
             await _context.SaveChangesAsync();
         }
+    }
+
+    private static string GetVideo(Dictionary<string, string>? videos, string key)
+    {
+        if (videos == null)
+            return string.Empty;
+
+        return videos.TryGetValue(key, out var value)
+            ? value ?? string.Empty
+            : string.Empty;
     }
 
     private static string NormalizeTrackName(string? trackName)
