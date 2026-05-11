@@ -14,22 +14,25 @@ public class ProfileController : BaseController
 {
     private readonly IUserRepository _userRepository;
     private readonly IUserTrackRepository _userTrackRepository;
-    private readonly ITrackRepository _trackRepository;
 
     public ProfileController(
         IUserRepository userRepository,
-        IUserTrackRepository userTrackRepository,
-        ITrackRepository trackRepository)
+        IUserTrackRepository userTrackRepository)
     {
         _userRepository = userRepository;
         _userTrackRepository = userTrackRepository;
-        _trackRepository = trackRepository;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetProfile()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userIdClaim))
+            return Unauthorized();
+
+        if (!int.TryParse(userIdClaim, out var userId))
+            return BadRequest("Invalid user id");
 
         var user = await _userRepository.GetByIdAsync(userId);
 
@@ -39,17 +42,11 @@ public class ProfileController : BaseController
         var result = user.Adapt<UserResponse>();
 
         var userTracks = await _userTrackRepository.GetByUserIdAsync(userId);
-        var allTracks = await _trackRepository.GetAllAsync();
 
-        var tracks = userTracks.Select(ut =>
+        var tracks = userTracks.Select(ut => new
         {
-            var track = allTracks.FirstOrDefault(t => t.Id == ut.TrackId);
-
-            return new
-            {
-                trackId = ut.TrackId,
-                trackName = track?.Name
-            };
+            trackId = ut.TrackId,
+            trackName = ut.Track?.Name
         }).ToList();
 
         return Ok(new
@@ -63,7 +60,13 @@ public class ProfileController : BaseController
     [HttpPut]
     public async Task<IActionResult> UpdateProfile(UpdateProfileRequest request)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userIdClaim))
+            return Unauthorized();
+
+        if (!int.TryParse(userIdClaim, out var userId))
+            return BadRequest("Invalid user id");
 
         var user = await _userRepository.GetByIdAsync(userId);
 
@@ -82,7 +85,13 @@ public class ProfileController : BaseController
     [HttpPost("upload-image")]
     public async Task<IActionResult> UploadImage(IFormFile file)
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userIdClaim))
+            return Unauthorized();
+
+        if (!int.TryParse(userIdClaim, out var userId))
+            return BadRequest("Invalid user id");
 
         var user = await _userRepository.GetByIdAsync(userId);
 

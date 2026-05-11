@@ -61,6 +61,7 @@ public class UserTrackRepository: IUserTrackRepository
     public async Task<List<UserTrack>> GetByUserIdAsync(int userId)
     {
         return await _context.UserTracks
+            .Include(x => x.Track)
             .Where(x => x.UserId == userId)
             .ToListAsync();
     }

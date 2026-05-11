@@ -15,6 +15,8 @@ public class AiController : BaseController
     private readonly IAiRoadmapService _aiRoadmapService;
     private readonly IAiContentPersistenceService _aiContentPersistenceService;
     private readonly IUserRepository _userRepository;
+    private readonly IUserTrackRepository _userTrackRepository;
+    private readonly ITrackRepository _trackRepository;
     private readonly IMemoryCache _cache;
 
     public AiController(
@@ -22,12 +24,16 @@ public class AiController : BaseController
         IAiRoadmapService aiRoadmapService,
         IAiContentPersistenceService aiContentPersistenceService,
         IUserRepository userRepository,
+        IUserTrackRepository userTrackRepository,
+        ITrackRepository trackRepository,
         IMemoryCache cache)
     {
         _aiService = aiService;
         _aiRoadmapService = aiRoadmapService;
         _aiContentPersistenceService = aiContentPersistenceService;
         _userRepository = userRepository;
+        _userTrackRepository = userTrackRepository;
+        _trackRepository = trackRepository;
         _cache = cache;
     }
 
@@ -43,6 +49,9 @@ public class AiController : BaseController
             return BadRequest("Invalid user id");
 
         var user = await _userRepository.GetByIdAsync(parsedId);
+
+        if (user == null)
+            return NotFound("User not found");
 
         user.Level = dto.Level;
         await _userRepository.UpdateAsync(user);
@@ -80,6 +89,9 @@ public class AiController : BaseController
 
         var user = await _userRepository.GetByIdAsync(int.Parse(userId));
 
+        if (user == null)
+            return NotFound("User not found");
+
         if (!string.IsNullOrEmpty(result.Level))
         {
             user.Level = result.Level;
@@ -107,9 +119,43 @@ public class AiController : BaseController
 
         await _aiContentPersistenceService.SaveGeneratedContentAsync(result);
 
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrWhiteSpace(userIdClaim))
+            return Unauthorized();
+
+        if (!int.TryParse(userIdClaim, out var userId))
+            return BadRequest("Invalid user id");
+
+        var normalizedTrack = NormalizeTrackName(track);
+
+        var allTracks = await _trackRepository.GetAllAsync();
+
+        var trackEntity = allTracks.FirstOrDefault(t =>
+            NormalizeTrackName(t.Name) == normalizedTrack);
+
+        if (trackEntity == null)
+            return BadRequest("Track not found");
+
+        var isEnrolled = await _userTrackRepository.IsUserEnrolledAsync(userId, trackEntity.Id);
+
+        if (!isEnrolled)
+            await _userTrackRepository.EnrollUserAsync(userId, trackEntity.Id);
+
+        var user = await _userRepository.GetByIdAsync(userId);
+
+        if (user == null)
+            return NotFound("User not found");
+
+        user.Level = level;
+        await _userRepository.UpdateAsync(user);
+
         return Ok(new
         {
-            message = "Roadmap generated and saved successfully",
+            message = "Roadmap generated, saved, and user enrolled successfully",
+            trackId = trackEntity.Id,
+            trackName = trackEntity.Name,
+            level = user.Level,
             result
         });
     }
@@ -192,6 +238,9 @@ public class AiController : BaseController
 
         var user = await _userRepository.GetByIdAsync(int.Parse(userId));
 
+        if (user == null)
+            return NotFound("User not found");
+
         if (!string.IsNullOrEmpty(result.Level))
         {
             user.Level = result.Level;
@@ -203,5 +252,14 @@ public class AiController : BaseController
             isFinished = true,
             result
         });
+    }
+
+    private static string NormalizeTrackName(string? value)
+    {
+        return (value ?? string.Empty)
+            .Trim()
+            .ToLower()
+            .Replace("-", "_")
+            .Replace(" ", "_");
     }
 }
