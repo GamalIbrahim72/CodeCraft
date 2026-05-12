@@ -30,7 +30,7 @@ public class AiContentPersistenceService : IAiContentPersistenceService
         if (track == null)
             throw new Exception($"Track not found: {data.Data.Track}");
 
-        var level = data.Data.Level ?? "Beginner";
+        var level = NormalizeLevel(data.Data.Level);
 
         foreach (var step in data.Data.Roadmap)
         {
@@ -60,7 +60,8 @@ public class AiContentPersistenceService : IAiContentPersistenceService
                 _context.Courses.Add(course);
             }
 
-            course.Title = courseTitle;
+            course.Level = level;
+            course.Title = $"{courseTitle} - {level}";
             course.Description = $"AI Generated Course - Topic Id: {externalTopicId}";
             course.Order = step.Step;
 
@@ -125,5 +126,19 @@ public class AiContentPersistenceService : IAiContentPersistenceService
             .ToLower()
             .Replace("-", "_")
             .Replace(" ", "_");
+    }
+
+    private static string NormalizeLevel(string? level)
+    {
+        var value = (level ?? "beginner").Trim().ToLower();
+
+        return value switch
+        {
+            "junior" => "beginner",
+            "mid" => "intermediate",
+            "middle" => "intermediate",
+            "senior" => "advanced",
+            _ => value
+        };
     }
 }

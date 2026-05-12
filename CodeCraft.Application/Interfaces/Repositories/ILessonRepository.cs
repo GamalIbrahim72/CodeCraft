@@ -9,5 +9,6 @@ public interface ILessonRepository:IGenericRepository<Lesson>
 {
     Task<int> GetLessonsCountByCourseId(int courseId);
     Task<Lesson?> GetFirstLessonInCourse(int courseId);
+    Task<IEnumerable<Lesson>> GetLessonsByCourseId(int courseId);
 
 }

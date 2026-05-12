@@ -29,4 +29,10 @@ public class LessonRepository:GenericRepository<Lesson>, ILessonRepository
             .OrderBy(l => l.Order)
             .FirstOrDefaultAsync();
     }
+    public async Task<IEnumerable<Lesson>> GetLessonsByCourseId(int courseId)
+    {
+        return await _context.Lessons
+            .Where(l => l.CourseId == courseId)
+            .ToListAsync();
+    }
 }
