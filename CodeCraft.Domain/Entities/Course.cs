@@ -17,6 +17,7 @@ public class Course
     public int Order { get; set; }
     public Track Track { get; set; } = null!;
     public string Level { get; set; } = null!;
+    public string? ExternalTopicId { get; set; }
 
     public ICollection<Lesson> Lessons { get; set; }= new List<Lesson>();
     public ICollection<Enrollment> Enrollments { get; set; } = new List<Enrollment>();

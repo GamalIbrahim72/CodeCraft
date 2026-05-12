@@ -32,24 +32,6 @@ public class AiContentPersistenceService : IAiContentPersistenceService
 
         var level = data.Data.Level ?? "Beginner";
 
-        var oldCourses = await _context.Courses
-            .Where(c => c.TrackId == track.Id && c.Level.ToLower() == level.ToLower())
-            .ToListAsync();
-
-        if (oldCourses.Any())
-        {
-            var oldCourseIds = oldCourses.Select(c => c.Id).ToList();
-
-            var oldLessons = await _context.Lessons
-                .Where(l => oldCourseIds.Contains(l.CourseId))
-                .ToListAsync();
-
-            _context.Lessons.RemoveRange(oldLessons);
-            _context.Courses.RemoveRange(oldCourses);
-
-            await _context.SaveChangesAsync();
-        }
-
         foreach (var step in data.Data.Roadmap)
         {
             var courseTitle =
@@ -59,16 +41,29 @@ public class AiContentPersistenceService : IAiContentPersistenceService
                 ?? step.TopicId
                 ?? $"Step {step.Step}";
 
-            var course = new Course
-            {
-                Title = courseTitle,
-                Description = $"AI Generated Course - Topic Id: {step.TopicId ?? string.Empty}",
-                Order = step.Step,
-                TrackId = track.Id,
-                Level = level
-            };
+            var externalTopicId = step.TopicId ?? $"step-{step.Step}";
 
-            _context.Courses.Add(course);
+            var course = await _context.Courses.FirstOrDefaultAsync(c =>
+                c.TrackId == track.Id &&
+                c.Level.ToLower() == level.ToLower() &&
+                c.ExternalTopicId == externalTopicId);
+
+            if (course == null)
+            {
+                course = new Course
+                {
+                    TrackId = track.Id,
+                    Level = level,
+                    ExternalTopicId = externalTopicId
+                };
+
+                _context.Courses.Add(course);
+            }
+
+            course.Title = courseTitle;
+            course.Description = $"AI Generated Course - Topic Id: {externalTopicId}";
+            course.Order = step.Step;
+
             await _context.SaveChangesAsync();
 
             var lessonOrder = 1;
@@ -77,23 +72,35 @@ public class AiContentPersistenceService : IAiContentPersistenceService
             {
                 var videos = lessonDto.Resources?.Videos;
 
-                var lesson = new Lesson
+                var externalLessonId =
+                    lessonDto.LessonId
+                    ?? $"{externalTopicId}-lesson-{lessonOrder}";
+
+                var lesson = await _context.Lessons.FirstOrDefaultAsync(l =>
+                    l.CourseId == course.Id &&
+                    l.ExternalLessonId == externalLessonId);
+
+                if (lesson == null)
                 {
-                    ExternalLessonId = lessonDto.LessonId,
+                    lesson = new Lesson
+                    {
+                        CourseId = course.Id,
+                        ExternalLessonId = externalLessonId
+                    };
 
-                    Title = lessonDto.Subtopic ?? lessonDto.Topic ?? $"Lesson {lessonOrder}",
-                    Description = lessonDto.Description ?? string.Empty,
+                    _context.Lessons.Add(lesson);
+                }
 
-                    VideoUrl = GetVideo(videos, "video_1"),
-                    VideoUrl2 = GetVideo(videos, "video_2"),
-                    VideoUrl3 = GetVideo(videos, "video_3"),
+                lesson.Title = lessonDto.Subtopic ?? lessonDto.Topic ?? $"Lesson {lessonOrder}";
+                lesson.Description = lessonDto.Description ?? string.Empty;
 
-                    ArticleUrl = lessonDto.Resources?.Article ?? string.Empty,
-                    Order = lessonOrder,
-                    CourseId = course.Id
-                };
+                lesson.VideoUrl = GetVideo(videos, "video_1");
+                lesson.VideoUrl2 = GetVideo(videos, "video_2");
+                lesson.VideoUrl3 = GetVideo(videos, "video_3");
 
-                _context.Lessons.Add(lesson);
+                lesson.ArticleUrl = lessonDto.Resources?.Article ?? string.Empty;
+                lesson.Order = lessonOrder;
+
                 lessonOrder++;
             }
 
