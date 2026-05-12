@@ -79,6 +79,8 @@ public class AiContentPersistenceService : IAiContentPersistenceService
 
                 var lesson = new Lesson
                 {
+                    ExternalLessonId = lessonDto.LessonId,
+
                     Title = lessonDto.Subtopic ?? lessonDto.Topic ?? $"Lesson {lessonOrder}",
                     Description = lessonDto.Description ?? string.Empty,
 
