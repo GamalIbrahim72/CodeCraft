@@ -15,4 +15,5 @@ public class TrackMessageDto
     public string SenderName { get; set; } = null!;
 
     public int TrackId { get; set; }
+    public string? SenderImageUrl { get; set; }
 }

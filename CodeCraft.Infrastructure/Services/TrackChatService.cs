@@ -1,13 +1,9 @@
 ﻿using CodeCraft.Application.Common.Exceptions;
 using CodeCraft.Application.DTOs.Community;
 using CodeCraft.Infrastructure.Persistence;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CodeCraft.Infrastructure.Services;
+
 public class TrackChatService : ITrackChatService
 {
     private readonly AppDbContext _context;
@@ -25,14 +21,19 @@ public class TrackChatService : ITrackChatService
             throw new BadRequestException("Message content is required");
 
         var trackExists = await _context.Tracks.AnyAsync(t => t.Id == dto.TrackId);
+
         if (!trackExists)
             throw new KeyNotFoundException("Track not found");
 
-        var isEnrolled = await _userTrackRepository.IsUserEnrolledInTrackAsync(userId, dto.TrackId);
+        var isEnrolled = await _userTrackRepository
+            .IsUserEnrolledInTrackAsync(userId, dto.TrackId);
+
         if (!isEnrolled)
             throw new UnauthorizedException("You are not enrolled in this track");
 
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
         if (user == null)
             throw new KeyNotFoundException("User not found");
 
@@ -45,6 +46,7 @@ public class TrackChatService : ITrackChatService
         };
 
         _context.TrackChatMessages.Add(message);
+
         await _context.SaveChangesAsync();
 
         return new TrackMessageDto
@@ -54,6 +56,7 @@ public class TrackChatService : ITrackChatService
             SentAt = message.SentAt,
             SenderId = userId,
             SenderName = user.FirstName + " " + user.LastName,
+            SenderImageUrl = user.ProfileImageUrl,
             TrackId = message.TrackId
         };
     }
@@ -61,10 +64,13 @@ public class TrackChatService : ITrackChatService
     public async Task<IEnumerable<TrackMessageDto>> GetMessagesByTrackAsync(int trackId, int userId)
     {
         var trackExists = await _context.Tracks.AnyAsync(t => t.Id == trackId);
+
         if (!trackExists)
             throw new KeyNotFoundException("Track not found");
 
-        var isEnrolled = await _userTrackRepository.IsUserEnrolledInTrackAsync(userId, trackId);
+        var isEnrolled = await _userTrackRepository
+            .IsUserEnrolledInTrackAsync(userId, trackId);
+
         if (!isEnrolled)
             throw new UnauthorizedException("You are not enrolled in this track");
 
@@ -79,6 +85,7 @@ public class TrackChatService : ITrackChatService
                 SentAt = m.SentAt,
                 SenderId = m.SenderId,
                 SenderName = m.Sender.FirstName + " " + m.Sender.LastName,
+                SenderImageUrl = m.Sender.ProfileImageUrl,
                 TrackId = m.TrackId
             })
             .ToListAsync();
