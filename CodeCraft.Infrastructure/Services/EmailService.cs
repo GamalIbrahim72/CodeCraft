@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -18,22 +18,22 @@ public class EmailService: IEmailService
 
     public async Task SendEmailAsync(string to, string subject, string body)
     {
-        var smtp = new SmtpClient(_config["Email:Host"])
+        var host = _config["Email:Host"] ?? "smtp.gmail.com";
+        var port = int.TryParse(_config["Email:Port"], out var p) ? p : 587;
+        var username = _config["Email:Username"] ?? string.Empty;
+        var password = _config["Email:Password"] ?? string.Empty;
+
+        using var smtp = new SmtpClient(host)
         {
-            Port = int.Parse(_config["Email:Port"]),
-            Credentials = new NetworkCredential(
-                _config["Email:Username"],
-                _config["Email:Password"]
-            ),
+            Port = port,
+            Credentials = new NetworkCredential(username, password),
             EnableSsl = true
         };
 
-        var message = new MailMessage(
-            _config["Email:Username"],
-            to,
-            subject,
-            body
-        );
+        using var message = new MailMessage(username, to, subject, body)
+        {
+            IsBodyHtml = true
+        };
 
         await smtp.SendMailAsync(message);
     }

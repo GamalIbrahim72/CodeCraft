@@ -1,4 +1,4 @@
-﻿using CodeCraft.Application.DTOs.Progress;
+using CodeCraft.Application.DTOs.Progress;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +21,9 @@ public class ProgressController : BaseController
     public async Task<IActionResult> CompleteLesson(int lessonId)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (userId == null)
+            return Unauthorized();
 
         await _progressService.MarkLessonComplete(lessonId, userId);
 

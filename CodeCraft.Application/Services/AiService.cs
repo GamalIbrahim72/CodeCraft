@@ -1,8 +1,9 @@
-﻿using System.Net.Http.Headers;
-using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using CodeCraft.Application.DTOs.AI;
+using CodeCraft.Application.Interfaces.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace CodeCraft.Infrastructure.Services;
 
@@ -10,11 +11,16 @@ public class AiService : IAiService
 {
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<AiService> _logger;
 
-    public AiService(HttpClient httpClient, IConfiguration configuration)
+    public AiService(
+        HttpClient httpClient,
+        IConfiguration configuration,
+        ILogger<AiService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
+        _logger = logger;
     }
 
     private async Task<string?> GetDjangoTokenAsync()
@@ -24,10 +30,10 @@ public class AiService : IAiService
         var password = _configuration["DjangoAi:Password"];
 
         var formData = new Dictionary<string, string>
-    {
-        { "username", username! },
-        { "password", password! }
-    };
+        {
+            { "username", username ?? string.Empty },
+            { "password", password ?? string.Empty }
+        };
 
         var response = await _httpClient.PostAsync(
             $"{baseUrl}/api/token/",
@@ -35,15 +41,17 @@ public class AiService : IAiService
 
         var content = await response.Content.ReadAsStringAsync();
 
-        Console.WriteLine($"[AI Token] Status: {response.StatusCode}");
-        Console.WriteLine($"[AI Token] Response: {content}");
+        _logger.LogInformation("[AI Token] Status: {StatusCode}", response.StatusCode);
 
         if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("[AI Token] Failed to obtain AI token: {Content}", content);
             return null;
+        }
 
-        var token = System.Text.Json.JsonSerializer.Deserialize<DjangoTokenResponseDto>(
+        var token = JsonSerializer.Deserialize<DjangoTokenResponseDto>(
             content,
-            new System.Text.Json.JsonSerializerOptions
+            new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
@@ -51,14 +59,16 @@ public class AiService : IAiService
         return token?.Access;
     }
 
-
     public async Task<List<AiQuestionDto>?> GetQuestionsAsync(string track)
     {
         var baseUrl = _configuration["DjangoAi:BaseUrl"];
         var token = await GetDjangoTokenAsync();
 
         if (token == null)
+        {
+            _logger.LogError("[AI Questions] Could not obtain token for track {Track}", track);
             return null;
+        }
 
         var request = new HttpRequestMessage(
             HttpMethod.Get,
@@ -70,15 +80,17 @@ public class AiService : IAiService
         var response = await _httpClient.SendAsync(request);
         var content = await response.Content.ReadAsStringAsync();
 
-        Console.WriteLine($"[AI Questions] Status: {response.StatusCode}");
-        Console.WriteLine($"[AI Questions] Response: {content}");
+        _logger.LogInformation("[AI Questions] Track: {Track}, Status: {StatusCode}", track, response.StatusCode);
 
         if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("[AI Questions] Error fetching questions: {Content}", content);
             return null;
+        }
 
-        var result = System.Text.Json.JsonSerializer.Deserialize<AiQuestionsResponseDto>(
+        var result = JsonSerializer.Deserialize<AiQuestionsResponseDto>(
             content,
-            new System.Text.Json.JsonSerializerOptions
+            new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
@@ -93,18 +105,11 @@ public class AiService : IAiService
 
         if (token == null)
         {
-            Console.WriteLine("[AI Evaluate] Token is NULL");
+            _logger.LogError("[AI Evaluate] AI Token is null");
             return null;
         }
 
-        var json = JsonSerializer.Serialize(
-    dto,
-    new JsonSerializerOptions
-    {
-        WriteIndented = true
-    });
-
-        Console.WriteLine($"[AI Evaluate] Sent Body: {json}");
+        var json = JsonSerializer.Serialize(dto);
 
         var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -116,23 +121,24 @@ public class AiService : IAiService
                 "application/json")
         };
 
-        request.Headers.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await _httpClient.SendAsync(request);
         var content = await response.Content.ReadAsStringAsync();
 
-        Console.WriteLine($"[AI Evaluate] Status: {response.StatusCode}");
-        Console.WriteLine($"[AI Evaluate] Response: {content}");
+        _logger.LogInformation("[AI Evaluate] Status: {StatusCode}", response.StatusCode);
 
         if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("[AI Evaluate] Failed evaluation: {Content}", content);
             return null;
+        }
 
-        return System.Text.Json.JsonSerializer.Deserialize<EvaluateResponseDto>(
+        return JsonSerializer.Deserialize<EvaluateResponseDto>(
             content,
-            new System.Text.Json.JsonSerializerOptions
+            new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
     }
-}
+}

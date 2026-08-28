@@ -23,9 +23,6 @@ builder.Services.AddOpenApi();
 // Configure Entity Framework Core with SQL Server
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddHttpClient<IAiService, AiService>();
-builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddMemoryCache();
 
 //swagger
@@ -57,7 +54,6 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 //===================================================================================
-builder.Services.AddScoped<IVideoService, VideoService>();
 
 // Configure JWT Authentication
 
@@ -78,23 +74,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         ValidAudience = builder.Configuration["Jwt:Audience"],
 
         IssuerSigningKey = new SymmetricSecurityKey(
-         Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])
+         Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "Default_Secret_Key_For_Development_Only_32bytes_Long")
      ),
 
         ClockSkew = TimeSpan.Zero
-    };
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = context =>
-        {
-            Console.WriteLine(" Auth Failed: " + context.Exception.Message);
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            Console.WriteLine(" Token Validated");
-            return Task.CompletedTask;
-        }
     };
 });
 

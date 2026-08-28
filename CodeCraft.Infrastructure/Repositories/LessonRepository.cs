@@ -1,18 +1,14 @@
-﻿using CodeCraft.Infrastructure.Persistence;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CodeCraft.Application.Interfaces.Repositories;
+using CodeCraft.Domain.Entities;
+using CodeCraft.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace CodeCraft.Infrastructure.Repositories;
-public class LessonRepository:GenericRepository<Lesson>, ILessonRepository
-{
-    private readonly AppDbContext _context;
 
+public class LessonRepository : GenericRepository<Lesson>, ILessonRepository
+{
     public LessonRepository(AppDbContext context) : base(context)
     {
-        _context = context;
     }
 
     public async Task<int> GetLessonsCountByCourseId(int courseId)
@@ -29,6 +25,7 @@ public class LessonRepository:GenericRepository<Lesson>, ILessonRepository
             .OrderBy(l => l.Order)
             .FirstOrDefaultAsync();
     }
+
     public async Task<IEnumerable<Lesson>> GetLessonsByCourseId(int courseId)
     {
         return await _context.Lessons

@@ -1,4 +1,4 @@
-﻿using CodeCraft.Application.Common;
+using CodeCraft.Application.Common;
 using CodeCraft.Application.DTOs.CoursesDTOs;
 using CodeCraft.Domain.Entities;
 using Mapster;
@@ -77,6 +77,9 @@ public class CoursesController : BaseController
             return Unauthorized();
 
         var user = await _userRepository.GetByIdAsync(int.Parse(userId));
+
+        if (user == null)
+            return NotFound("User not found");
 
         var courses = await _courseRepository.GetAllAsync();
 

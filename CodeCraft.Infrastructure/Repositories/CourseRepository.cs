@@ -1,18 +1,14 @@
-﻿using CodeCraft.Infrastructure.Persistence;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CodeCraft.Application.Interfaces.Repositories;
+using CodeCraft.Domain.Entities;
+using CodeCraft.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 namespace CodeCraft.Infrastructure.Repositories;
-public class CourseRepository: GenericRepository<Course>, ICourseRepository
-{
-    private readonly AppDbContext _context;
 
+public class CourseRepository : GenericRepository<Course>, ICourseRepository
+{
     public CourseRepository(AppDbContext context) : base(context)
     {
-        _context = context;
     }
 
     public async Task<IEnumerable<Course>> GetCoursesByTrackId(int trackId)

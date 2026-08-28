@@ -1,11 +1,8 @@
-﻿using CodeCraft.Application.DTOs;
+using CodeCraft.Application.DTOs;
 using CodeCraft.Application.DTOs.Admin;
-using CodeCraft.Domain.Enums;
-using CodeCraft.Infrastructure.Persistence;
-using Mapster;
+using CodeCraft.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace CodeCraft.API.Controllers;
 
@@ -14,94 +11,38 @@ namespace CodeCraft.API.Controllers;
 [ApiController]
 public class AdminController : BaseController
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IEmailService _emailService;
-    private readonly AppDbContext _context;
+    private readonly IAdminService _adminService;
 
-    public AdminController(
-        IUserRepository userRepository,
-        IEmailService emailService,
-        AppDbContext context)
+    public AdminController(IAdminService adminService)
     {
-        _userRepository = userRepository;
-        _emailService = emailService;
-        _context = context;
+        _adminService = adminService;
     }
 
     [HttpPost("make-admin/{userId}")]
     public async Task<IActionResult> MakeAdmin(int userId)
     {
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null)
-            return NotFound();
-
-        user.Role = UserRole.Admin;
-
-        await _userRepository.UpdateAsync(user);
-
+        await _adminService.MakeAdminAsync(userId);
         return SuccessResponse<string>(null, "User promoted to Admin");
     }
 
     [HttpGet("users")]
-    public async Task<IActionResult> GetUsers(string? search)
+    public async Task<IActionResult> GetUsers([FromQuery] string? search)
     {
-        var users = await _userRepository.GetAllAsync();
-
-        if (!string.IsNullOrEmpty(search))
-        {
-            users = users.Where(u =>
-                u.FirstName.Contains(search) ||
-                u.Email.Contains(search) ||
-                u.Id.ToString() == search
-            );
-        }
-
-        var result = users.Adapt<List<UserResponse>>();
-
-        return Ok(result);
+        var users = await _adminService.GetUsersAsync(search);
+        return Ok(users);
     }
 
     [HttpDelete("user/{userId}")]
     public async Task<IActionResult> DeleteUser(int userId)
     {
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user == null)
-            return NotFound("User not found");
-
-        await _userRepository.DeleteAsync(user);
-
+        await _adminService.DeleteUserAsync(userId);
         return SuccessResponse<string>(null, "User deleted successfully");
     }
 
     [HttpGet("track-stats")]
     public async Task<IActionResult> GetTrackStats()
     {
-        var stats = await _context.UserTracks
-            .Include(ut => ut.Track)
-            .Include(ut => ut.User)
-            .GroupBy(ut => new
-            {
-                ut.TrackId,
-                TrackName = ut.Track.Name
-            })
-            .Select(g => new AdminTrackStatsDto
-            {
-                TrackId = g.Key.TrackId,
-                TrackName = g.Key.TrackName,
-                TotalUsers = g.Select(x => x.UserId).Distinct().Count(),
-                Levels = g
-                    .GroupBy(x => x.User.Level ?? "Unknown")
-                    .Select(levelGroup => new AdminLevelStatsDto
-                    {
-                        Level = levelGroup.Key,
-                        UsersCount = levelGroup.Select(x => x.UserId).Distinct().Count()
-                    })
-                    .ToList()
-            })
-            .ToListAsync();
-
+        var stats = await _adminService.GetTrackStatsAsync();
         return Ok(stats);
     }
-}
+}

@@ -1,4 +1,4 @@
-﻿using CodeCraft.Application.Common;
+using CodeCraft.Application.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,9 +7,9 @@ namespace CodeCraft.API.Controllers;
 [ApiController]
 public class BaseController : ControllerBase
 {
-    protected IActionResult SuccessResponse<T>(T data, string message = "Success")
+    protected IActionResult SuccessResponse<T>(T? data = default, string message = "Success")
     {
-        return Ok(new ApiResponse<T>
+        return Ok(new ApiResponse<T?>
         {
             Success = true,
             Message = message,

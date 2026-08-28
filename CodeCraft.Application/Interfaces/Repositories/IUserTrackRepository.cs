@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CodeCraft.Application.DTOs.Admin;
 
 namespace CodeCraft.Application.Interfaces.Repositories;
 public interface IUserTrackRepository
@@ -15,4 +11,5 @@ public interface IUserTrackRepository
     Task<List<User>> GetEnrolledUsersAsync();
     Task<bool> IsUserEnrolledInTrackAsync(int userId, int trackId);
     Task<List<UserTrack>> GetByUserIdAsync(int userId);
+    Task<List<AdminTrackStatsDto>> GetTrackStatsAsync();
 }

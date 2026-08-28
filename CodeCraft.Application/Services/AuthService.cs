@@ -1,4 +1,4 @@
-﻿using CodeCraft.Application.Common;
+using CodeCraft.Application.Common;
 using CodeCraft.Application.Common.Exceptions;
 using CodeCraft.Application.DTOs.AuthDTOs;
 using CodeCraft.Application.DTOs.Password;
@@ -32,16 +32,6 @@ public class AuthService : IAuthService
         _passwordHasher = passwordHasher;
     }
 
-    private string Hash(string password)
-    {
-        return BCrypt.Net.BCrypt.HashPassword(password);
-    }
-
-    private bool Verify(string password, string hash)
-    {
-        return BCrypt.Net.BCrypt.Verify(password, hash);
-    }
-
     public async Task RegisterAsync(RegisterRequest request)
     {
         var existingUser = await _userRepository.GetByEmailAsync(request.Email);
@@ -60,7 +50,7 @@ public class AuthService : IAuthService
             Email = request.Email,
             Phone = request.Phone,
             DateOfBirth = request.DateOfBirth,
-            PasswordHash = Hash(request.Password),
+            PasswordHash = _passwordHasher.Hash(request.Password),
 
             EmailConfirmed = false,
             EmailVerificationCode = verificationCode,
@@ -92,9 +82,7 @@ public class AuthService : IAuthService
         if (user == null)
             throw new UnauthorizedException("Invalid email or password");
 
-        var passwordValid = Verify(request.Password, user.PasswordHash);
-
-        if (!passwordValid)
+        if (string.IsNullOrEmpty(user.PasswordHash) || !_passwordHasher.Verify(request.Password, user.PasswordHash))
             throw new UnauthorizedException("Invalid email or password");
 
         if (!user.EmailConfirmed)

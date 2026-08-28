@@ -1,4 +1,4 @@
-﻿using CodeCraft.Application.Common;
+using CodeCraft.Application.Common;
 using CodeCraft.Application.DTOs.AuthDTOs;
 using CodeCraft.Application.DTOs.Password;
 using CodeCraft.Application.Interfaces.Services;
@@ -157,6 +157,9 @@ public class AuthController : BaseController
             return Unauthorized("Invalid refresh token");
 
         var user = await _userRepository.GetByIdAsync(token.UserId);
+
+        if (user == null)
+            return Unauthorized("User not found");
 
         var newAccessToken = _tokenService.GenerateToken(user);
 

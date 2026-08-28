@@ -1,9 +1,5 @@
-﻿using CodeCraft.Infrastructure.Persistence;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CodeCraft.Application.DTOs.Admin;
+using CodeCraft.Infrastructure.Persistence;
 
 namespace CodeCraft.Infrastructure.Repositories;
 public class UserTrackRepository: IUserTrackRepository
@@ -63,6 +59,33 @@ public class UserTrackRepository: IUserTrackRepository
         return await _context.UserTracks
             .Include(x => x.Track)
             .Where(x => x.UserId == userId)
+            .ToListAsync();
+    }
+
+    public async Task<List<AdminTrackStatsDto>> GetTrackStatsAsync()
+    {
+        return await _context.UserTracks
+            .Include(ut => ut.Track)
+            .Include(ut => ut.User)
+            .GroupBy(ut => new
+            {
+                ut.TrackId,
+                TrackName = ut.Track.Name
+            })
+            .Select(g => new AdminTrackStatsDto
+            {
+                TrackId = g.Key.TrackId,
+                TrackName = g.Key.TrackName,
+                TotalUsers = g.Select(x => x.UserId).Distinct().Count(),
+                Levels = g
+                    .GroupBy(x => x.User.Level ?? "Unknown")
+                    .Select(levelGroup => new AdminLevelStatsDto
+                    {
+                        Level = levelGroup.Key,
+                        UsersCount = levelGroup.Select(x => x.UserId).Distinct().Count()
+                    })
+                    .ToList()
+            })
             .ToListAsync();
     }
 }

@@ -1,17 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CodeCraft.Domain.Entities;
 
 namespace CodeCraft.Application.Interfaces.Repositories;
-public interface ILessonAttachmentRepository
+
+public interface ILessonAttachmentRepository : IGenericRepository<LessonAttachment>
 {
-    Task AddAsync(LessonAttachment attachment);
-
     Task<IEnumerable<LessonAttachment>> GetByLessonIdAsync(int lessonId);
-
-    Task<LessonAttachment> GetByIdAsync(int id);
-
     void Delete(LessonAttachment attachment);
 }

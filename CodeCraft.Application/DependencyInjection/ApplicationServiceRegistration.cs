@@ -1,9 +1,5 @@
-﻿using CodeCraft.Application.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using CodeCraft.Application.Services;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace CodeCraft.Application.DependencyInjection;
@@ -16,9 +12,9 @@ public static class ApplicationServiceRegistration
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<ILessonService, LessonService>();
         services.AddScoped<IProgressService, ProgressService>();
+        services.AddScoped<IAdminService, AdminService>();
 
-       
-
+        services.AddValidatorsFromAssembly(typeof(ApplicationServiceRegistration).Assembly);
 
         return services;
     }

@@ -1,4 +1,4 @@
-﻿using CodeCraft.Application.Interfaces.Repositories;
+using CodeCraft.Application.Interfaces.Repositories;
 using CodeCraft.Application.Services;
 using CodeCraft.Infrastructure.Persistence;
 using CodeCraft.Infrastructure.Repositories;
@@ -43,6 +43,10 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IProgressRepository, ProgressRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<ITrackChatService, TrackChatService>();
+
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddScoped<IVideoService, VideoService>();
 
         services.AddHostedService<EmailBackgroundService>();
         services.AddHttpClient<IAiRoadmapService, AiRoadmapService>();

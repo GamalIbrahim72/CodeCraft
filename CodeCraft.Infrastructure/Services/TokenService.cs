@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace CodeCraft.Application.Services;
 public class TokenService: ITokenService
@@ -12,8 +12,9 @@ public class TokenService: ITokenService
 
     public string GenerateToken(User user)
     {
+        var keyString = _configuration["Jwt:Key"] ?? "Default_Secret_Key_For_Development_Only_32bytes_Long";
         var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_configuration["Jwt:Key"])
+            Encoding.UTF8.GetBytes(keyString)
         );
 
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -25,13 +26,13 @@ public class TokenService: ITokenService
             new Claim(ClaimTypes.Role, user.Role.ToString())
         };
 
+        var durationMinutes = double.TryParse(_configuration["Jwt:DurationInMinutes"], out var d) ? d : 60;
+
         var token = new JwtSecurityToken(
-             issuer: _configuration["Jwt:Issuer"],
-             audience: _configuration["Jwt:Audience"],
+             issuer: _configuration["Jwt:Issuer"] ?? "CodeCraftAPI",
+             audience: _configuration["Jwt:Audience"] ?? "CodeCraftClients",
              claims: claims,
-             expires: DateTime.UtcNow.AddMinutes(
-              Convert.ToDouble(_configuration["Jwt:DurationInMinutes"])
-             ),
+             expires: DateTime.UtcNow.AddMinutes(durationMinutes),
              signingCredentials: creds
         );
 
